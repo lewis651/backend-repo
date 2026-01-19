@@ -61,6 +61,27 @@ router.post("/create-driver", protect(["admin"]), async (req, res) => {
   }
 });
 
+router.get("/dashboard-stats", protect(["admin"]), async (req, res) => {
+  try {
+    const totalUsers = await User.countDocuments({ role: "user" });
+    const activeDrivers = await User.countDocuments({ role: "driver", status: "ACTIVE" });
+    const deactivatedAccounts = await User.countDocuments({ status: "INACTIVE" });
+    const scheduledCollections = await Schedule.countDocuments(); // Assuming User Schedules is what we want here
+    const openReports = await Report.countDocuments({ status: { $ne: "resolved" } }); // simplified pending/in-progress
+
+    res.json({
+      totalUsers,
+      activeDrivers,
+      deactivatedAccounts,
+      scheduledCollections,
+      openReports
+    });
+  } catch (error) {
+    console.error("Error fetching dashboard stats:", error);
+    res.status(500).json({ message: "Failed to fetch statistics" });
+  }
+});
+
 router.get("/users", protect(["admin"]), async (req, res) => {
   const users = await User.find().select('-password');
   res.json(users);
@@ -80,6 +101,19 @@ router.put("/user/:id", protect(["admin"]), async (req, res) => {
 router.delete("/driver/:id", protect(["admin"]), async (req, res) => {
   await User.findByIdAndDelete(req.params.id);
   res.json({ message: "Driver deleted" });
+});
+
+router.delete("/user/:id", protect(["admin"]), async (req, res) => {
+  try {
+    const user = await User.findByIdAndDelete(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.json({ message: "User deleted" });
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    res.status(500).json({ message: "Failed to delete user" });
+  }
 });
 
 router.post("/assign-schedule", protect(["admin"]), async (req, res) => {
@@ -108,6 +142,7 @@ router.post("/user-schedules", async (req, res) => {
     { days },
     { upsert: true, new: true }
   );
+
   res.json(schedule);
 });
 
@@ -121,10 +156,9 @@ router.get("/reports", async (req, res) => {
   res.json(reports);
 });
 
-router.get("/user-reports", async (req, res) => {
+router.get("/user-reports", protect(), async (req, res) => {
   try {
-    // Return all reports for testing
-    const reports = await Report.find().sort({ createdAt: -1 });
+    const reports = await Report.find({ userId: req.user.id }).sort({ createdAt: -1 });
     res.json(reports);
   } catch (error) {
     console.error('Error fetching user reports:', error);
@@ -132,13 +166,18 @@ router.get("/user-reports", async (req, res) => {
   }
 });
 
-router.post("/reports", upload.single('image'), async (req, res) => {
+router.post("/reports", protect(), upload.single('image'), async (req, res) => {
   const { issueType, description, location } = req.body;
   const image = req.file ? req.file.filename : null;
-  // Mock user for testing
-  const userId = "mock-user-id";
+
   try {
-    const report = await Report.create({ userId, issueType, description, location, image });
+    const report = await Report.create({
+      userId: req.user.id,
+      issueType,
+      description,
+      location,
+      image
+    });
     res.json(report);
   } catch (error) {
     console.error('Error creating report:', error);

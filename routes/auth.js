@@ -25,6 +25,7 @@ const upload = multer({ storage });
 router.post("/signup", async (req, res) => {
   try {
     const { name, email, password, location } = req.body;
+    console.log("Signup attempt:", { name, email, location }); // DEBUG LOG
 
     if (!name || !email || !password || !location) {
       return res.status(400).json({ message: "All fields are required" });
@@ -47,7 +48,7 @@ router.post("/signup", async (req, res) => {
     res.status(201).json({ message: "Signup successful" });
   } catch (err) {
     console.error("SIGNUP ERROR:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Server error: " + err.message });
   }
 });
 
@@ -55,6 +56,7 @@ router.post("/signup", async (req, res) => {
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log("Login attempt:", { email }); // DEBUG LOG
 
     const user = await User.findOne({ email });
     if (!user) {

@@ -3,20 +3,26 @@ import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
 import authRoutes from "./routes/auth.js";
+import adminRoutes from "./routes/admin.js";
+import driverRoutes from "./routes/driver.js";
+import scheduleRoutes from "./routes/schedule.js";
 
 dotenv.config();
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    process.env.CLIENT_URL
+  ].filter(Boolean),
+  credentials: true
+}));
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
 app.use("/api/auth", authRoutes);
-import adminRoutes from "./routes/admin.js";
-import driverRoutes from "./routes/driver.js";
-import scheduleRoutes from "./routes/schedule.js";
-
 app.use("/api/admin", adminRoutes);
 app.use("/api/driver", driverRoutes);
 app.use("/api/schedule", scheduleRoutes);
